@@ -8,6 +8,7 @@ from PIL.ImageQt import ImageQt
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import QApplication, QMainWindow
+from threading import Lock
 import cv2
 import pyrealsense2 as rs
 import numpy as np
@@ -16,8 +17,8 @@ import datetime
 from toast import Toast
 import glob
 from functools import partial
-
-
+import random
+from PIL import Image
 class InferenceMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -31,6 +32,7 @@ class InferenceMain(QWidget):
         self.checkpoint_file = None
         self.model = None
         self.model_classes = None
+        self.num_classes = None
         self.visualizer = None
         self.model_label = QLabel(self)  # Added QLabel to display model file name
         self.update_button_states()
@@ -94,7 +96,7 @@ class InferenceMain(QWidget):
 
 
         # self.buttons[0].clicked.connect(self.load_cfg)  # configFile 불러오기
-        self.buttons[0].clicked.connect(self.load_model)  # 모델 불러오기
+        self.buttons[0].clicked.connect(self.handle_load_model_button_click)  # 모델 불러오기
         self.buttons[1].clicked.connect(self.connect_camera)  # '카메라 연결' 버튼을 connect_camera 함수에 연결
         self.buttons[2].clicked.connect(self.load_image)
         # self.buttons[3].clicked.connect(self.start_recording)  # '영상 저장' 버튼을 start_recording 함수에 연결
@@ -122,16 +124,35 @@ class InferenceMain(QWidget):
         # # Start the video thread
         # self.thread.start()
     # Add new method to set the ComboBox value
+    def handle_load_model_button_click(self):
+        algo_type = self.get_selected_algo_type()  # 이 함수는 선택된 알고리즘 유형을 반환해야 합니다.
+        if algo_type == 'Object Detection':
+            self.load_detection_model()
+        elif algo_type == 'Segmentation':
+            self.load_detection_model()
+        elif algo_type == 'Classification':
+            self.load_classification_model()  # 이 함수를 필요에 맞게 구현해야 합니다.
+        else:
+            print(f'Error: Unknown algo_type {algo_type}')
+    def get_selected_algo_type(self):
+        return self.algo1.currentText()
     def set_algo_type(self, algo_type):
         print(algo_type)
         self.algo1.clear()  # Clear all items
         if algo_type == 'Object Detection':
             self.algo1.addItems(['yolov5', 'faster_rcnn'])
             self.algo1.currentIndexChanged.connect(self.change_config_file)
+            self.buttons[0].clicked.connect(self.load_detection_model)  # 모델 불러오기
+            self.thread.set_algorithm('ObjectDetection')  # Set the algorithm in the VideoThread
         elif algo_type == 'Classification':
             self.algo1.addItems(['d', 'e', 'f'])
+            self.thread.set_algorithm('Classification')  # Set the algorithm in the VideoThread
         elif algo_type == 'Segmentation':
-            self.algo1.addItems(['g', 'h', 'i'])
+            self.algo1.addItems(['pspnet','1321312'])
+            self.algo1.currentIndexChanged.connect(self.change_config_file)
+            self.buttons[0].clicked.connect(self.load_segmentation_model)  # 모델 불러오기
+            self.thread.set_algorithm('Segmentation')  # Set the algorithm in the VideoThread
+            print('pspnet1111')
         else:
             print(f'Error: Unknown algo_type {algo_type}')
     def change_config_file(self, index):
@@ -140,6 +161,9 @@ class InferenceMain(QWidget):
             self.config_file = '/home/ubuntu/projects/robot/iris/odCfgFile/faster-rcnn_r50_fpn_1x_coco.py'
         elif item == 'faster_rcnn':
             self.config_file = 'odCfgFile/faster-rcnn_r50_fpn_1x_coco.py'
+        elif item == 'pspnet':
+            print('pspnet222')
+            self.config_file = 'sgCfgFile/pspnet_r50-d8_4xb2-40k_cityscapes-512x1024.py'
     # '모델 등록' 버튼이 클릭되었을 때 호출되는 함수
     def show_placeholder_image(self):
         # Load your placeholder image
@@ -153,7 +177,8 @@ class InferenceMain(QWidget):
         placeholder = QImage(":image/null.png")
         # Display the placeholder image
         self.setImageRaw(placeholder)
-    def load_model(self):
+
+    def load_detection_model(self):
         from mmdet.apis import init_detector, inference_detector
         from mmdet.registry import VISUALIZERS
         options = QFileDialog.Options()
@@ -168,6 +193,40 @@ class InferenceMain(QWidget):
             self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
             self.IsModel = True
         self.update_button_states()
+
+    # Segmentation 관련
+    def load_segmentation_model(self):
+        from mmseg.apis import init_model
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
+        if fileName:
+            self.checkpoint_file = fileName  # save model path
+            self.model = init_model(self.config_file, self.checkpoint_file, device='cuda:0')
+            print(self.config_file)
+            self.num_classes = self.model.decode_head.conv_seg.out_channels
+            print(self.num_classes)
+            self.palette = [[0, 0, 0]]  # Set background color to black
+            self.palette += [[random.randint(0, 255) for _ in range(3)] for _ in range(self.num_classes - 1)]  # Other classes get random colors
+            self.IsModel = True
+        self.update_button_states()
+    def show_result(self, img, result, opacity=0.5):
+        img = img.copy()
+        seg_img = np.zeros((img.shape[0], img.shape[1], 3))
+
+        # Convert the predicted segmentation map to numpy array
+        pred_labels = result.pred_sem_seg.data.cpu().numpy()[0] # Remove batch dimension
+
+        for label, color in enumerate(self.palette[1:], start=1):
+            seg_img[pred_labels == label] = color
+
+        seg_img = Image.fromarray(seg_img.astype(np.uint8)).convert('RGB')
+        seg_img = np.array(seg_img).astype(img.dtype)
+        seg_img = cv2.addWeighted(img, 1 - opacity, seg_img, opacity, 0)
+        return seg_img
+
+    # Segmentation 여기까지
+
 
     def load_image(self):
         options = QFileDialog.Options()
@@ -266,19 +325,18 @@ class VideoThread(QThread):
     def __init__(self, inference_main, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.inference_main = inference_main
-        self.mutex = QMutex()  # Add a mutex
-        self.video_writer = None  # Add a video writer
+        self.lock = Lock()
+        self.video_writer = None
+        self.algorithm = None
 
     def run(self):
-        from mmdet.apis import inference_detector
+
         self.pipeline = rs.pipeline()
         self.config = rs.config()
         self.is_connected = False
-
         while True:
-            self.mutex.lock()  # Lock the mutex
-            is_connected = self.is_connected  # Store the flag value in a local variable
-            self.mutex.unlock()  # Unlock the mutex
+            with self.lock:
+                is_connected = self.is_connected
 
             if is_connected:
                 frames = self.pipeline.wait_for_frames()
@@ -286,7 +344,6 @@ class VideoThread(QThread):
 
                 if not color_frame:
                     continue
-
                 color_image = np.asanyarray(color_frame.get_data())
 
                 rgbImageRaw = np.copy(color_image)
@@ -295,53 +352,129 @@ class VideoThread(QThread):
                 convertToQtFormat = QImage(rgbImageRaw.data, w, h, bytesPerLine, QImage.Format_RGB888)
                 p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
                 self.changePixmapRaw.emit(p)
-                # Apply the model and draw bounding boxes
-                if self.inference_main.model is not None:
-                    result = inference_detector(self.inference_main.model, color_image)
-                    combined_result = []
 
-                    pred_instances = result.pred_instances
-                    labels = pred_instances.labels.cpu().numpy()
-                    bboxes = pred_instances.bboxes.cpu().numpy()
-                    scores = pred_instances.scores.cpu().numpy()
+                if self.algorithm == "ObjectDetection":
+                    self.run_object_detection(color_image)
+                elif self.algorithm == "Segmentation":
+                    self.run_segmentation(color_image)
 
-                    for label, bbox, score in zip(labels, bboxes, scores):
-                        combined_result.append(('model1', self.inference_main.model_classes[label], np.append(bbox, score)))
-
-                    for model_id, label, bbox_and_score in combined_result:
-                        bbox = bbox_and_score[:4]
-                        score = bbox_and_score[4]
-                        if score >= 0.9:
-                            x1, y1, x2, y2 = bbox.astype(int)
-                            if model_id == 'model1':
-                                color = (0, 0, 255)
-                            cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
-                            text = f"Label: {label}, Score: {score:.2f}"
-                            cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+    def run_object_detection(self, color_image):
+        from mmdet.apis import inference_detector
+        # Apply the model and draw bounding boxes
+        if self.inference_main.model:
+            result = inference_detector(self.inference_main.model, color_image)
+            self.process_result(result, color_image)
 
 
-                rgbImage = color_image
-                h, w, ch = rgbImage.shape
-                bytesPerLine = ch * w
-                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-                self.changePixmap.emit(p)
+    def run_segmentation(self, color_image):
+        from mmseg.apis import inference_model
+        if self.inference_main.model:
+            result = inference_model(self.inference_main.model, color_image)
+            self.process_result(result, color_image)
 
 
+    def set_algorithm(self, algorithm):
+        with self.lock:
+            self.algorithm = algorithm
+    def process_result(self, result, color_image):
+        if self.algorithm == "ObjectDetection":
+            # Process object detection results
+            combined_result = []
+            pred_instances = result.pred_instances
+            labels = pred_instances.labels.cpu().numpy()
+            bboxes = pred_instances.bboxes.cpu().numpy()
+            scores = pred_instances.scores.cpu().numpy()
+
+            for label, bbox, score in zip(labels, bboxes, scores):
+                combined_result.append(('model1', self.inference_main.model_classes[label], np.append(bbox, score)))
+
+            for model_id, label, bbox_and_score in combined_result:
+                bbox = bbox_and_score[:4]
+                score = bbox_and_score[4]
+                if score >= 0.9:
+                    x1, y1, x2, y2 = bbox.astype(int)
+                    if model_id == 'model1':
+                        color = (0, 0, 255)
+                    cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
+                    text = f"Label: {label}, Score: {score:.2f}"
+                    cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        elif self.algorithm == "Segmentation":
+            # Process segmentation results
+            seg_image = self.inference_main.show_result(color_image, result, opacity=0.5)
+            color_image = seg_image
+
+        rgbImage = color_image
+        h, w, ch = rgbImage.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmap.emit(p)
+    def run_object_detection(self, color_image):
+        from mmdet.apis import inference_detector
+        # Here goes the object detection code
+
+        # Apply the model and draw bounding boxes
+        if self.inference_main.model is not None:
+            result = inference_detector(self.inference_main.model, color_image)
+            combined_result = []
+
+            pred_instances = result.pred_instances
+            labels = pred_instances.labels.cpu().numpy()
+            bboxes = pred_instances.bboxes.cpu().numpy()
+            scores = pred_instances.scores.cpu().numpy()
+
+            for label, bbox, score in zip(labels, bboxes, scores):
+                combined_result.append(('model1', self.inference_main.model_classes[label], np.append(bbox, score)))
+
+            for model_id, label, bbox_and_score in combined_result:
+                bbox = bbox_and_score[:4]
+                score = bbox_and_score[4]
+                if score >= 0.9:
+                    x1, y1, x2, y2 = bbox.astype(int)
+                    if model_id == 'model1':
+                        color = (0, 0, 255)
+                    cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
+                    text = f"Label: {label}, Score: {score:.2f}"
+                    cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+        rgbImage = color_image
+        h, w, ch = rgbImage.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmap.emit(p)
+
+
+    def run_segmentation(self, color_image):
+        from mmseg.apis import inference_model
+        # Here goes the segmentation code
+
+        # Apply the model and create a segmentation map
+        if self.inference_main.model is not None:
+            print(self.inference_main.model)
+            result = inference_model(self.inference_main.model, color_image)
+            seg_image = self.inference_main.show_result(color_image, result, opacity=0.5)
+
+        rgbImage = seg_image
+        h, w, ch = rgbImage.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmap.emit(p)
+
+    # def run_segmentation(self, color_image):
+    #     # Here goes the segmentation code
     def connect_camera(self, camera_name):
-        self.mutex.lock()  # Lock the mutex
-        try:
-            self.pipeline.start(self.config)
-            self.is_connected = True
-            return True  # Add this line
-        except RuntimeError as e:
-            QMessageBox.information(self, "Connection failed", "Could not connect to the selected camera: {}".format(e))
-        finally:
-            self.mutex.unlock()  # Unlock the mutex in a finally block to ensure it gets unlocked
+        with self.lock:
+            try:
+                self.pipeline.start(self.config)
+                self.is_connected = True
+                return True
+            except RuntimeError as e:
+                QMessageBox.information(self, "Connection failed", "Could not connect to the selected camera: {}".format(e))
 
     def disconnect_camera(self):
-        self.mutex.lock()  # Lock the mutex
-        if self.is_connected:
-            self.pipeline.stop()
-            self.is_connected = False  # Set this flag to False after stopping the pipeline
-        self.mutex.unlock()  # Unlock the mutex
+        with self.lock:
+            if self.is_connected:
+                self.pipeline.stop()
+                self.is_connected = False
