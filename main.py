@@ -17,8 +17,6 @@ class MainWindow(QMainWindow):
         self.inference_main = InferenceMain()  # Add this line
         self.initUI()
 
-
-
     def initUI(self):
         self.resize_screen(80)
         self.center()
@@ -66,7 +64,6 @@ class MainWindow(QMainWindow):
         self.update_header("이미지 학습 촬영", "screen/image_shoot/step/step1.py", "GuideScreen")
 
         header_layout.addWidget(self.guide_button)
-
         header_widget.setLayout(header_layout)
         header_widget.setFixedHeight(70)
         side_menu = create_side_menu(self.stacked_widget, self)
@@ -112,18 +109,23 @@ class MainWindow(QMainWindow):
         cp = QDesktopWidget().availableGeometry().center()
         qr.moveCenter(cp)
         self.move(qr.topLeft())
+
     def update_header(self, text, guide_path=None, guide_class=None):
         self.header_label.setText(text)
-
-        if guide_path and guide_class:
-            self.guide_button.show()  # 가이드 버튼이 있으면 표시
-            self.guide_button.clicked.connect(lambda: self.load_screen_from_path(guide_path, guide_class))
+        if text == "실시간 모니터링 & 운영":
+            self.guide_button.hide()
         else:
-            self.guide_button.hide()  # 가이드 버튼이 없으면 숨김
+            if guide_path and guide_class:
+                self.guide_button.show()  # 가이드 버튼이 있으면 표시
+                self.guide_button.clicked.connect(lambda: self.load_screen_from_path(guide_path, guide_class))
+            else:
+                self.guide_button.hide()  # 가이드 버튼이 없으면 숨김
+
 
 
     def update_header_text(self, text):
         self.header_label.setText(text)
+
     def load_screen_from_path(self, path, class_name):
         if class_name == 'InferenceMain':
             self.stacked_widget.addWidget(self.inference_main)

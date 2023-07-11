@@ -41,6 +41,7 @@ class InferenceMain(QWidget):
         self.thread.changePixmap.connect(self.setImage)
         self.thread.changePixmapRaw.connect(self.setImageRaw)
         self.thread.start()
+        self.current_algo_type = None
     def initUI(self):
         # Define a main vertical layout
         main_layout = QVBoxLayout()
@@ -78,7 +79,7 @@ class InferenceMain(QWidget):
         button_layout.setAlignment(Qt.AlignCenter)  # Align the image to the center
         button_layout.setContentsMargins(0, 0, 0, 0)
 
-        button_names = ["모델 등록","카메라 연결", "이미지 저장", "데이터 확인"]
+        button_names = ["모델 등록","카메라 연결", "이미지 불러오기", "데이터 확인"]
         self.enabled_icons = [ ":image/folder-add.svg",":image/camera.svg", ":image/gallery.svg",  ":image/video-octagon.svg"]
         self.disabled_icons = [ ":image/folder-add.svg",":image/camera2.svg", ":image/gallery.svg",  ":image/video-octagon2.svg"]
         # Create the buttons and add them to the layout
@@ -125,32 +126,32 @@ class InferenceMain(QWidget):
         # self.thread.start()
     # Add new method to set the ComboBox value
     def handle_load_model_button_click(self):
-        algo_type = self.get_selected_algo_type()  # 이 함수는 선택된 알고리즘 유형을 반환해야 합니다.
-        if algo_type == 'Object Detection':
+        print('handle_load_model_button_click')
+        if self.current_algo_type == 'Object Detection':
             self.load_detection_model()
-        elif algo_type == 'Segmentation':
-            self.load_detection_model()
-        elif algo_type == 'Classification':
+            print('load_detection_model')
+        elif self.current_algo_type == 'Segmentation':
+            self.load_segmentation_model()
+            print('load_segmentation_model')
+        elif self.current_algo_type == 'Classification':
             self.load_classification_model()  # 이 함수를 필요에 맞게 구현해야 합니다.
         else:
-            print(f'Error: Unknown algo_type {algo_type}')
+            print(f'Error: Unknown algo_type {self.current_algo_type}')
     def get_selected_algo_type(self):
         return self.algo1.currentText()
     def set_algo_type(self, algo_type):
-        print(algo_type)
+        self.current_algo_type = algo_type
         self.algo1.clear()  # Clear all items
         if algo_type == 'Object Detection':
-            self.algo1.addItems(['yolov5', 'faster_rcnn'])
+            self.algo1.addItems(['선택해주세요','yolov5', 'faster_rcnn'])
             self.algo1.currentIndexChanged.connect(self.change_config_file)
-            self.buttons[0].clicked.connect(self.load_detection_model)  # 모델 불러오기
             self.thread.set_algorithm('ObjectDetection')  # Set the algorithm in the VideoThread
         elif algo_type == 'Classification':
-            self.algo1.addItems(['d', 'e', 'f'])
+            self.algo1.addItems(['선택해주세요','d', 'e', 'f'])
             self.thread.set_algorithm('Classification')  # Set the algorithm in the VideoThread
         elif algo_type == 'Segmentation':
-            self.algo1.addItems(['pspnet','1321312'])
+            self.algo1.addItems(['선택해주세요','pspnet'])
             self.algo1.currentIndexChanged.connect(self.change_config_file)
-            self.buttons[0].clicked.connect(self.load_segmentation_model)  # 모델 불러오기
             self.thread.set_algorithm('Segmentation')  # Set the algorithm in the VideoThread
             print('pspnet1111')
         else:
@@ -229,15 +230,52 @@ class InferenceMain(QWidget):
 
 
     def load_image(self):
+
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Image", "","Image Files (*.png *.jpg *.bmp)", options=options)
         if fileName:
             img = cv2.imread(fileName)
-            result = inference_detector(self.model, img)  # infer image with the model
-            img = self.visualizer.draw_results(img, self.model, result)
-            qt_img = self.convert_cv_qt(img)
-            self.image_label.setPixmap(qt_img)
+            img_original = img.copy()  # Keep a copy of the original image
+
+            # Convert the original image to QPixmap and display it on the left side
+            qt_img_original = self.convert_cv_qt(img_original)
+            self.image_label_raw.setPixmap(qt_img_original)
+            if self.current_algo_type == 'Object Detection':
+                from mmdet.apis import inference_detector
+                result = inference_detector(self.model, img)
+                combined_result = []
+                pred_instances = result.pred_instances
+                labels = pred_instances.labels.cpu().numpy()
+                bboxes = pred_instances.bboxes.cpu().numpy()
+                scores = pred_instances.scores.cpu().numpy()
+
+                for label, bbox, score in zip(labels, bboxes, scores):
+                    combined_result.append(('model1', self.model_classes[label], np.append(bbox, score)))
+
+                for model_id, label, bbox_and_score in combined_result:
+                    bbox = bbox_and_score[:4]
+                    score = bbox_and_score[4]
+                    if score >= 0.9:
+                        x1, y1, x2, y2 = bbox.astype(int)
+                        if model_id == 'model1':
+                            color = (0, 0, 255)
+                        cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+                        text = f"Label: {label}, Score: {score:.2f}"
+                        cv2.putText(img, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+                rgbImage = img
+                qt_img = self.convert_cv_qt(rgbImage)
+                self.image_label.setPixmap(qt_img)
+
+            elif self.current_algo_type == 'Segmentation':
+                from mmseg.apis import inference_model
+                print('Segmentation 이미지')
+                result = inference_model(self.model, img)  # infer image with the model
+                seg_image = self.show_result(img, result, opacity=0.5)
+                color_image = seg_image
+                # Convert the segmentation result to QPixmap and display it on the right side
+                qt_img = self.convert_cv_qt(color_image)
+                self.image_label.setPixmap(qt_img)
 
 
     def convert_cv_qt(self, cv_img):
@@ -290,12 +328,10 @@ class InferenceMain(QWidget):
     def show_placeholder_image(self):
         # Load your placeholder image
         placeholder = QImage(":image/null.png")
-        print('caa')
         # Display the placeholder image
         self.setImage(placeholder)
     def show_placeholder_image_raw(self):
         # Load your placeholder image
-        print('aaa')
         placeholder = QImage(":image/null.png")
 
         # Display the placeholder image
@@ -409,6 +445,7 @@ class VideoThread(QThread):
         convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
         p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
         self.changePixmap.emit(p)
+
     def run_object_detection(self, color_image):
         from mmdet.apis import inference_detector
         # Here goes the object detection code

@@ -25,8 +25,9 @@ def create_side_menu(stacked_widget, main_window):
             main_window.load_screen_from_path('screen/image_shoot/index.py', 'ImageMain'),
             main_window.update_header_text("이미지 촬영"),
             main_window.update_header("이미지 학습 촬영", "screen/image_shoot/step/step1.py", "GuideScreen"),
-            button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: white; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
-            button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))
+            button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: #ffffff; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
+            button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size)),
+            button3.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))
         ]
     )
     button2 = QToolButton()
@@ -41,8 +42,9 @@ def create_side_menu(stacked_widget, main_window):
         lambda: [
             main_window.load_screen_from_path('screen/calibration/index.py', 'CalibrationMain'),
             main_window.update_header_text("캘리브레이션"),
-            button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: white; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
-            button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))
+            button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: #ffffff; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
+            button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size)),
+            button3.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))
         ]
     )
 
@@ -54,12 +56,16 @@ def create_side_menu(stacked_widget, main_window):
     button3.setFixedHeight(button_height)
     button3.setFixedWidth(button_width)
     button3.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0;font-weight: bold;'.format(font_size))
-    button3.clicked.connect(lambda: [
+    button3.clicked.connect(
+        lambda: [
             main_window.load_screen_from_path('screen/inference/category.py', 'Category'),
             main_window.update_header_text("실시간 모니터링 & 운영"),
-            button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: white; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
-            button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))
-        ])
+            main_window.update_header("실시간 모니터링 & 운영", 'screen/inference/category.py', 'Category'),
+            button3.setStyleSheet('border-top: 1px solid #EFEFEF;background: white; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
+            button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size)),
+            button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))
+        ]
+    )
 
     layout.addWidget(button1)
     layout.addWidget(button2)
