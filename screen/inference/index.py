@@ -129,10 +129,8 @@ class InferenceMain(QWidget):
         print('handle_load_model_button_click')
         if self.current_algo_type == 'Object Detection':
             self.load_detection_model()
-            print('load_detection_model')
         elif self.current_algo_type == 'Segmentation':
             self.load_segmentation_model()
-            print('load_segmentation_model')
         elif self.current_algo_type == 'Classification':
             self.load_classification_model()  # 이 함수를 필요에 맞게 구현해야 합니다.
         else:
@@ -153,7 +151,6 @@ class InferenceMain(QWidget):
             self.algo1.addItems(['선택해주세요','pspnet'])
             self.algo1.currentIndexChanged.connect(self.change_config_file)
             self.thread.set_algorithm('Segmentation')  # Set the algorithm in the VideoThread
-            print('pspnet1111')
         else:
             print(f'Error: Unknown algo_type {algo_type}')
     def change_config_file(self, index):
@@ -163,7 +160,6 @@ class InferenceMain(QWidget):
         elif item == 'faster_rcnn':
             self.config_file = 'odCfgFile/faster-rcnn_r50_fpn_1x_coco.py'
         elif item == 'pspnet':
-            print('pspnet222')
             self.config_file = 'sgCfgFile/pspnet_r50-d8_4xb2-40k_cityscapes-512x1024.py'
     # '모델 등록' 버튼이 클릭되었을 때 호출되는 함수
     def show_placeholder_image(self):
@@ -197,7 +193,9 @@ class InferenceMain(QWidget):
 
     # Segmentation 관련
     def load_segmentation_model(self):
+        print('seg model load')
         from mmseg.apis import init_model
+        print('seg model done')
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
@@ -233,6 +231,7 @@ class InferenceMain(QWidget):
 
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
+        options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Image", "","Image Files (*.png *.jpg *.bmp)", options=options)
         if fileName:
             img = cv2.imread(fileName)

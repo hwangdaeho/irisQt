@@ -42,6 +42,7 @@ def create_side_menu(stacked_widget, main_window):
         lambda: [
             main_window.load_screen_from_path('screen/calibration/index.py', 'CalibrationMain'),
             main_window.update_header_text("캘리브레이션"),
+            main_window.update_header("캘리브레이션", "screen/calibration/step/step1.py", "GuideScreen"),
             button2.setStyleSheet('border-top: 1px solid #EFEFEF;background: #ffffff; font-size: {}px; padding: 20px 0; font-weight: bold; color: #B50039; '.format(font_size)),
             button1.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size)),
             button3.setStyleSheet('border-top: 1px solid #EFEFEF;background: #F7F7F7; font-size: {}px; padding: 20px 0; font-weight: bold; '.format(font_size))

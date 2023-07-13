@@ -1,10 +1,10 @@
 from PyQt5.QtWidgets import QWidget, QStackedWidget, QLabel, QVBoxLayout
 from PyQt5.QtCore import Qt
-from screen.calibration.step.step1 import CalibrationStep1Widget
+from screen.calibration.step.step1 import GuideScreen
 
 class CalibrationMain(QWidget):
-    def __init__(self, *args, **kwargs):
-        super(CalibrationMain, self).__init__(*args, **kwargs)
+    def __init__(self, parent=None, stacked_widget=None, main_window=None):
+        super().__init__(parent)
 
         self.stacked_widget = QStackedWidget()
         # self.step1 = CalibrationStep1Widget()
