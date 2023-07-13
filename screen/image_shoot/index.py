@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import QInputDialog
 from PyQt5.QtCore import QMutex, QTimer, QUrl
 from PyQt5.QtWidgets import QFileDialog
 from PIL.ImageQt import ImageQt
+from PyQt5.QtCore import Qt
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
 from PyQt5.QtMultimediaWidgets import QVideoWidget
 from PyQt5.QtWidgets import QApplication, QMainWindow
@@ -64,6 +65,7 @@ class ImageMain(QWidget):
             button = QToolButton()
             button.setText(name)
             button.setStyleSheet('background-color: #2F2F2F; color: white; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the background to black and text to white
+            button.setCursor(Qt.PointingHandCursor)
             button.setIcon(QIcon(self.enabled_icons[i]))  # Set the icon
             button.setIconSize(QSize(24, 24))  # Set the icon size
             button.setFixedSize(QSize(128, 100))  # Set the button size

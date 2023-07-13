@@ -1,11 +1,12 @@
 from PyQt5.QtWidgets import QLabel, QWidget, QPushButton, QVBoxLayout, QHBoxLayout, QFrame, QToolButton
 from PyQt5.QtGui import QPixmap, QPainter
 from PyQt5.QtCore import Qt, QSize
+
 class GuideScreen(QWidget):
     def __init__(self, stacked_widget, main_window):
         super().__init__()
-        main_layout = QVBoxLayout(self)  # Main layout
 
+        main_layout = QVBoxLayout(self)  # Main layout
         center_widget = QWidget()  # Widget for center alignment
         center_layout = QVBoxLayout(center_widget)  # Layout for center alignment
         center_layout.setContentsMargins(0, 0, 0, 0)  # Set layout margins to 0

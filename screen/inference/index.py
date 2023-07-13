@@ -87,9 +87,9 @@ class InferenceMain(QWidget):
         button_layout.setAlignment(Qt.AlignCenter)  # Align the image to the center
         button_layout.setContentsMargins(0, 0, 0, 0)
 
-        button_names = ["모델 등록","카메라 연결", "이미지 불러오기", "데이터 확인"]
-        self.enabled_icons = [ ":image/folder-add.svg",":image/camera.svg", ":image/gallery.svg",  ":image/video-octagon.svg"]
-        self.disabled_icons = [ ":image/folder-add.svg",":image/camera2.svg", ":image/gallery.svg",  ":image/video-octagon2.svg"]
+        button_names = ["모델 등록","카메라 연결", "이미지 불러오기",]
+        self.enabled_icons = [ ":image/folder-add.svg",":image/camera.svg", ":image/gallery.svg"]
+        self.disabled_icons = [ ":image/folder-add2.svg",":image/camera2.svg", ":image/gallery2.svg"]
         # Create the buttons and add them to the layout
         self.buttons = []
         for i, name in enumerate(button_names):
@@ -97,8 +97,9 @@ class InferenceMain(QWidget):
             button.setText(name)
             button.setStyleSheet('background-color: #2F2F2F; color: white; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the background to black and text to white
             button.setIcon(QIcon(self.enabled_icons[i]))  # Set the icon
+            button.setCursor(Qt.PointingHandCursor)
             button.setIconSize(QSize(24, 24))  # Set the icon size
-            button.setFixedSize(QSize(126, 100))  # Set the button size
+            button.setFixedSize(QSize(168, 100))  # Set the button size
             button.setToolButtonStyle(Qt.ToolButtonTextUnderIcon)
             self.buttons.append(button)
             button_layout.addWidget(button)
@@ -342,7 +343,7 @@ class InferenceMain(QWidget):
         self.buttons[0].setEnabled(True)  # '모델 업로드' button
         self.buttons[1].setEnabled(self.IsModel)  # '생성' button
         self.buttons[2].setEnabled(self.IsModel)  # '이미지 저장' button
-        self.buttons[3].setEnabled(self.IsModel)  # '영상 저장' button
+        # self.buttons[3].setEnabled(self.IsModel)  # '영상 저장' button
 
         # Update button colors
         for i, button in enumerate(self.buttons):

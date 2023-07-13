@@ -23,7 +23,7 @@ class GuideScreen3(QWidget):
         self.button1.setStyleSheet('background-color: #B50039; border: none; color: white; font-size:15px')
         self.button1.clicked.connect(lambda: main_window.load_screen_from_path('screen/calibration/step/step2.py', 'GuideScreen2'))
 
-        self.button2 = QPushButton("고고", self)
+        self.button2 = QPushButton("켈리브레이션 실행", self)
         self.button2.setStyleSheet('background-color: #B50039; border: none; color: white; font-size:15px')
         self.button2.clicked.connect(lambda: main_window.load_screen_from_path('screen/calibration/index.py', 'CalibrationMain'))
 
@@ -34,6 +34,7 @@ class GuideScreen3(QWidget):
         button_layout.addWidget(self.button1)  # Add the previous button
         button_layout.addWidget(self.button2)  # Add the next button
         button_layout.setAlignment(Qt.AlignCenter)  # Align the layout to the center
+        button_layout.setSpacing(30)  # Set layout margins to 0
 
         center_layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Add image label to the center layout
         center_layout.addLayout(button_layout)  # Add the button layout to the center layout

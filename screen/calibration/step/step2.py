@@ -34,6 +34,7 @@ class GuideScreen2(QWidget):
         button_layout.addWidget(self.button1)  # Add the previous button
         button_layout.addWidget(self.button2)  # Add the next button
         button_layout.setAlignment(Qt.AlignCenter)  # Align the layout to the center
+        button_layout.setSpacing(30)  # Set layout margins to 0
 
         center_layout.addWidget(self.label, alignment=Qt.AlignCenter)  # Add image label to the center layout
         center_layout.addLayout(button_layout)  # Add the button layout to the center layout
