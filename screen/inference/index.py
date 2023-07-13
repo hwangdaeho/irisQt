@@ -19,6 +19,9 @@ import glob
 from functools import partial
 import random
 from PIL import Image
+from mmdet.apis import init_detector
+from mmseg.apis import init_model
+from mmdet.registry import VISUALIZERS
 class InferenceMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -28,13 +31,12 @@ class InferenceMain(QWidget):
         self.IsModel = False
         self.folder_created = False
         self.camera_connected = False
-        self.config_file = '/home/ubuntu/projects/mmopen/mmdetection/configs/faster_rcnn/faster-rcnn_r50_fpn_1x_coco.py'
+        self.config_file = None
         self.checkpoint_file = None
         self.model = None
         self.model_classes = None
         self.num_classes = None
         self.visualizer = None
-        self.model_label = QLabel(self)  # Added QLabel to display model file name
         self.update_button_states()
 
         self.thread = VideoThread(self)  # Pass the inference_main instance to the VideoThread constructor
@@ -69,8 +71,14 @@ class InferenceMain(QWidget):
         # 콤보 박스
         self.algo1 = QComboBox()
 
+        self.model_label = QLabel()  # Added QLabel to display model file name
+        label_layout = QVBoxLayout()
+        label_layout.setAlignment(Qt.AlignCenter)
+        label_layout.addWidget(self.model_label)
+        combo_layout.addLayout(label_layout)
         self.algo1.setFixedSize(150, 30)
         self.algo1.setContentsMargins(10, 10, 10, 10)
+        combo_layout.addWidget(self.model_label)
         combo_layout.addWidget(self.algo1)
         # self.set_algo_type()
         button_layout = QHBoxLayout()
@@ -176,8 +184,7 @@ class InferenceMain(QWidget):
         self.setImageRaw(placeholder)
 
     def load_detection_model(self):
-        from mmdet.apis import init_detector, inference_detector
-        from mmdet.registry import VISUALIZERS
+
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
@@ -193,18 +200,13 @@ class InferenceMain(QWidget):
 
     # Segmentation 관련
     def load_segmentation_model(self):
-        print('seg model load')
-        from mmseg.apis import init_model
-        print('seg model done')
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
         if fileName:
             self.checkpoint_file = fileName  # save model path
             self.model = init_model(self.config_file, self.checkpoint_file, device='cuda:0')
-            print(self.config_file)
             self.num_classes = self.model.decode_head.conv_seg.out_channels
-            print(self.num_classes)
             self.palette = [[0, 0, 0]]  # Set background color to black
             self.palette += [[random.randint(0, 255) for _ in range(3)] for _ in range(self.num_classes - 1)]  # Other classes get random colors
             self.IsModel = True
