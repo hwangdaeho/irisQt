@@ -205,6 +205,8 @@ class InferenceMain(QWidget):
             # self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
             self.model = init_detector(self.config_file, self.checkpoint_file, device='cpu')
             self.model_classes = self.model.dataset_meta['classes']
+            print('모델')
+            print(self.model.dataset_meta['classes'])
             self.visualizer = mmdet_VISUALIZERS.build(self.model.cfg.visualizer)
             self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
             self.IsModel = True
@@ -235,6 +237,8 @@ class InferenceMain(QWidget):
             # self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
             self.model = init_detector(self.config_file, self.checkpoint_file, device='cpu')
             self.model_classes = self.model.dataset_meta['classes']
+            print('모델')
+            print(self.model.dataset_meta['classes'])
             self.visualizer = mmyolo_VISUALIZERS.build(self.model.cfg.visualizer)
             self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
             self.IsModel = True
@@ -272,7 +276,6 @@ class InferenceMain(QWidget):
             qt_img_original = self.convert_cv_qt(img_original)
             self.image_label_raw.setPixmap(qt_img_original)
             if self.current_algo_type == 'Object Detection':
-                from mmdet.apis import inference_detector
                 result = inference_detector(self.model, img)
                 combined_result = []
                 pred_instances = result.pred_instances
@@ -298,7 +301,6 @@ class InferenceMain(QWidget):
                 self.image_label.setPixmap(qt_img)
 
             elif self.current_algo_type == 'Segmentation':
-                from mmseg.apis import inference_model
                 print('Segmentation 이미지')
                 result = inference_model(self.model, img)  # infer image with the model
                 seg_image = self.show_result(img, result, opacity=0.5)
@@ -412,12 +414,12 @@ class VideoThread(QThread):
                     continue
                 color_image = np.asanyarray(color_frame.get_data())
 
-                rgbImageRaw = np.copy(color_image)
-                h, w, ch = rgbImageRaw.shape
-                bytesPerLine = ch * w
-                convertToQtFormat = QImage(rgbImageRaw.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-                self.changePixmapRaw.emit(p)
+                # rgbImageRaw = np.copy(color_image)
+                # h, w, ch = rgbImageRaw.shape
+                # bytesPerLine = ch * w
+                # convertToQtFormat = QImage(rgbImageRaw.data, w, h, bytesPerLine, QImage.Format_RGB888)
+                # p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+                # self.changePixmapRaw.emit(p)
 
                 if self.algorithm == "ObjectDetection":
                     self.run_object_detection(color_image)
@@ -428,14 +430,14 @@ class VideoThread(QThread):
         # Apply the model and draw bounding boxes
         if self.inference_main.model:
             result = inference_detector(self.inference_main.model, color_image)
-            self.process_result(result, color_image)
+            # self.process_result(result, color_image)
 
 
     def run_segmentation(self, color_image):
 
         if self.inference_main.model:
             result = inference_model(self.inference_main.model, color_image)
-            self.process_result(result, color_image)
+            # self.process_result(result, color_image)
 
 
     def set_algorithm(self, algorithm):
@@ -468,16 +470,21 @@ class VideoThread(QThread):
             seg_image = self.inference_main.show_result(color_image, result, opacity=0.5)
             color_image = seg_image
 
-        rgbImage = color_image
-        h, w, ch = rgbImage.shape
-        bytesPerLine = ch * w
-        convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-        self.changePixmap.emit(p)
+        # rgbImage = color_image
+        # h, w, ch = rgbImage.shape
+        # bytesPerLine = ch * w
+        # convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        # p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        # self.changePixmap.emit(p)
 
     def run_object_detection(self, color_image):
-        from mmdet.apis import inference_detector
+        #from mmdet.apis import inference_detector
         # Here goes the object detection code
+        h, w, ch = color_image.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmapRaw.emit(p)
 
         # Apply the model and draw bounding boxes
         if self.inference_main.model is not None:
@@ -503,28 +510,24 @@ class VideoThread(QThread):
                     text = f"Label: {label}, Score: {score:.2f}"
                     cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
-        rgbImage = color_image
-        h, w, ch = rgbImage.shape
-        bytesPerLine = ch * w
-        convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
         p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
         self.changePixmap.emit(p)
 
 
+
     def run_segmentation(self, color_image):
-        from mmseg.apis import inference_model
+        #from mmseg.apis import inference_model
         # Here goes the segmentation code
 
         # Apply the model and create a segmentation map
         if self.inference_main.model is not None:
-            print(self.inference_main.model)
             result = inference_model(self.inference_main.model, color_image)
             seg_image = self.inference_main.show_result(color_image, result, opacity=0.5)
 
-        rgbImage = seg_image
-        h, w, ch = rgbImage.shape
+        h, w, ch = seg_image.shape
         bytesPerLine = ch * w
-        convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        convertToQtFormat = QImage(seg_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
         p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
         self.changePixmap.emit(p)
 
