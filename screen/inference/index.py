@@ -188,10 +188,12 @@ class InferenceMain(QWidget):
 
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
+        options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
         if fileName:
             print(fileName)
             self.checkpoint_file = fileName  # save model path
+            # self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
             self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
             self.model_classes = self.model.dataset_meta['classes']
             self.visualizer = VISUALIZERS.build(self.model.cfg.visualizer)
@@ -203,6 +205,7 @@ class InferenceMain(QWidget):
     def load_segmentation_model(self):
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
+        options |= QFileDialog.DontUseNativeDialog
         fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
         if fileName:
             self.checkpoint_file = fileName  # save model path

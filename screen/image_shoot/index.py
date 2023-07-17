@@ -139,7 +139,10 @@ class ImageMain(QWidget):
 
     def create_folder(self):
         if self.camera_connected:  # Only allow to create a folder when the camera is connected
-            folder_path = QFileDialog.getExistingDirectory(self, 'Select Directory')
+            options = QFileDialog.Options()
+            options |= QFileDialog.ReadOnly
+            options |= QFileDialog.DontUseNativeDialog
+            folder_path = QFileDialog.getExistingDirectory(self, 'Select Directory',options=options)
             if folder_path:
                 self.folder_path = folder_path
                 self.folder_created = True

@@ -9,6 +9,7 @@ import sys
 import importlib.util
 from PyQt5.QtWidgets import QWidget
 import resources
+import os
 class MainWindow(QMainWindow):
     def __init__(self, *args, **kwargs):
         super(MainWindow, self).__init__(*args, **kwargs)
@@ -143,10 +144,15 @@ class MainWindow(QMainWindow):
 
         # Now you can call set_algo_type on the InferenceMain instance
         self.inference_main.set_algo_type(algo_type)
-    def load_screen(self, file_path, class_name):
-        import importlib.util
+    def load_screen(self, path, class_name):
+        if getattr(sys, 'frozen', False):
+            base_dir = sys._MEIPASS
+        else:
+            base_dir = os.path.dirname(__file__)
 
-        spec = importlib.util.spec_from_file_location(class_name, file_path)
+        path = os.path.join(base_dir, path)
+
+        spec = importlib.util.spec_from_file_location(class_name, path)
         module = importlib.util.module_from_spec(spec)
 
         spec.loader.exec_module(module)

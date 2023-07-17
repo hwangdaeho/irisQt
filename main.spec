@@ -12,7 +12,16 @@ a = Analysis(
         ('/home/ubuntu/projects/robot/iris/mmdet', 'mmdet'),
         ('/home/ubuntu/projects/robot/iris/mmseg', 'mmseg'),
         ('/home/ubuntu/.pyenv/versions/3.8.12/lib/python3.8/site-packages/mmcv', 'mmcv'),  # mmcv 패키지 위치를 잘 찾아서 넣어주세요
-        ('/home/ubuntu/.pyenv/versions/3.8.12/lib/python3.8/site-packages/yapf_third_party/_ylib2to3', 'yapf_third_party/_ylib2to3')  # yapf의 Grammar.txt 위치를 잘 찾아서 넣어주세요
+        ('/home/ubuntu/.pyenv/versions/3.8.12/lib/python3.8/site-packages/yapf_third_party/_ylib2to3', 'yapf_third_party/_ylib2to3'),  # yapf의 Grammar.txt 위치를 잘 찾아서 넣어주세요
+        ('/home/ubuntu/projects/robot/iris/screen/calibration/index.py', 'screen/calibration'),
+        ('/home/ubuntu/projects/robot/iris/screen/image_shoot/index.py', 'screen/image_shoot'),
+        ('/home/ubuntu/projects/robot/iris/screen/inference/index.py', 'screen/inference'),
+        ('/home/ubuntu/projects/robot/iris/screen/inference/category.py', 'screen/inference'),
+        ('/home/ubuntu/projects/robot/iris/screen/calibration/step/step1.py', 'screen/inference/step'),
+        ('/home/ubuntu/projects/robot/iris/screen/calibration/step/step2.py', 'screen/inference/step'),
+        ('/home/ubuntu/projects/robot/iris/screen/calibration/step/step3.py', 'screen/inference/step'),
+        ('/home/ubuntu/projects/robot/iris/screen/image_shoot/step/step1.py', 'screen/image_shoot/step'),
+
     ],
     hiddenimports=[
         'mmdet',
