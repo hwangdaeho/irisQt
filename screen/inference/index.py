@@ -21,7 +21,10 @@ import random
 from PIL import Image
 from mmdet.apis import init_detector
 from mmseg.apis import init_model
-from mmdet.registry import VISUALIZERS
+from mmdet.registry import VISUALIZERS as mmdet_VISUALIZERS
+from mmyolo.registry import VISUALIZERS as mmyolo_VISUALIZERS
+from mmdet.apis import inference_detector
+from mmseg.apis import inference_model
 class InferenceMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -37,6 +40,7 @@ class InferenceMain(QWidget):
         self.model_classes = None
         self.num_classes = None
         self.visualizer = None
+        self.isYolo = None
         self.update_button_states()
 
         self.thread = VideoThread(self)  # Pass the inference_main instance to the VideoThread constructor
@@ -137,7 +141,10 @@ class InferenceMain(QWidget):
     def handle_load_model_button_click(self):
         print('handle_load_model_button_click')
         if self.current_algo_type == 'Object Detection':
-            self.load_detection_model()
+            if self.isYolo =="yolov5":
+                self.load_mmyolov_model()
+            else:
+                self.load_detection_model()
         elif self.current_algo_type == 'Segmentation':
             self.load_segmentation_model()
         elif self.current_algo_type == 'Classification':
@@ -165,9 +172,11 @@ class InferenceMain(QWidget):
     def change_config_file(self, index):
         item = self.algo1.itemText(index)
         if item == 'yolov5':
-            self.config_file = '/home/ubuntu/projects/robot/iris/odCfgFile/faster-rcnn_r50_fpn_1x_coco.py'
+            self.config_file = 'yoloCfgFile/yolov5/yolov5_s-v61_syncbn_8xb16-300e_coco.py'
+            self.isYolo = 'yolov5'
         elif item == 'faster_rcnn':
             self.config_file = 'odCfgFile/faster-rcnn_r50_fpn_1x_coco.py'
+            self.isYolo = None
         elif item == 'pspnet':
             self.config_file = 'sgCfgFile/pspnet_r50-d8_4xb2-40k_cityscapes-512x1024.py'
     # '모델 등록' 버튼이 클릭되었을 때 호출되는 함수
@@ -194,9 +203,9 @@ class InferenceMain(QWidget):
             print(fileName)
             self.checkpoint_file = fileName  # save model path
             # self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
-            self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
+            self.model = init_detector(self.config_file, self.checkpoint_file, device='cpu')
             self.model_classes = self.model.dataset_meta['classes']
-            self.visualizer = VISUALIZERS.build(self.model.cfg.visualizer)
+            self.visualizer = mmdet_VISUALIZERS.build(self.model.cfg.visualizer)
             self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
             self.IsModel = True
         self.update_button_states()
@@ -215,6 +224,22 @@ class InferenceMain(QWidget):
             self.palette += [[random.randint(0, 255) for _ in range(3)] for _ in range(self.num_classes - 1)]  # Other classes get random colors
             self.IsModel = True
         self.update_button_states()
+    def load_mmyolov_model(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self,"Load Model", "","All Files (*);;Model Files (*.pth)", options=options)
+        if fileName:
+            print(fileName)
+            self.checkpoint_file = fileName  # save model path
+            # self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
+            self.model = init_detector(self.config_file, self.checkpoint_file, device='cpu')
+            self.model_classes = self.model.dataset_meta['classes']
+            self.visualizer = mmyolo_VISUALIZERS.build(self.model.cfg.visualizer)
+            self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
+            self.IsModel = True
+        self.update_button_states()
+
     def show_result(self, img, result, opacity=0.5):
         img = img.copy()
         seg_img = np.zeros((img.shape[0], img.shape[1], 3))
@@ -400,7 +425,6 @@ class VideoThread(QThread):
                     self.run_segmentation(color_image)
 
     def run_object_detection(self, color_image):
-        from mmdet.apis import inference_detector
         # Apply the model and draw bounding boxes
         if self.inference_main.model:
             result = inference_detector(self.inference_main.model, color_image)
@@ -408,7 +432,7 @@ class VideoThread(QThread):
 
 
     def run_segmentation(self, color_image):
-        from mmseg.apis import inference_model
+
         if self.inference_main.model:
             result = inference_model(self.inference_main.model, color_image)
             self.process_result(result, color_image)
