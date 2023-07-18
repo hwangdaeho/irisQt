@@ -385,7 +385,6 @@ class InferenceMain(QWidget):
                 button.setEnabled(False)
                 button.setIcon(QIcon(self.disabled_icons[i]))  # Change this line
                 button.setStyleSheet('background-color: #2F2F2F; color: #525252; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the disabled button color
-
 class VideoThread(QThread):
     changePixmap = pyqtSignal(QImage)  # For the processed image
     changePixmapRaw = pyqtSignal(QImage)  # For the raw image
@@ -396,40 +395,42 @@ class VideoThread(QThread):
         self.lock = Lock()
         self.video_writer = None
         self.algorithm = None
-
-    def run(self):
-
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.run_capture)
+        self.timer.start(1000 / 30)  # Start the timer to call update_frame 30 times per second
+        self.is_connected = False  # Initialize the attribute
         self.pipeline = rs.pipeline()
         self.config = rs.config()
-        self.is_connected = False
-        while True:
-            with self.lock:
-                is_connected = self.is_connected
 
-            if is_connected:
-                frames = self.pipeline.wait_for_frames()
-                color_frame = frames.get_color_frame()
 
-                if not color_frame:
-                    continue
-                color_image = np.asanyarray(color_frame.get_data())
+    def run_capture(self):
+        with self.lock:
+            is_connected = self.is_connected
 
-                # rgbImageRaw = np.copy(color_image)
-                # h, w, ch = rgbImageRaw.shape
-                # bytesPerLine = ch * w
-                # convertToQtFormat = QImage(rgbImageRaw.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                # p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-                # self.changePixmapRaw.emit(p)
+        if is_connected:
+            print('run_capture')
+            print('is_connected')
+            frames = self.pipeline.wait_for_frames()
+            color_frame = frames.get_color_frame()
+            print(color_frame)
 
-                if self.algorithm == "ObjectDetection":
-                    self.run_object_detection(color_image)
-                elif self.algorithm == "Segmentation":
-                    self.run_segmentation(color_image)
+            if not color_frame:
+                return
+
+            color_image = np.asanyarray(color_frame.get_data())
+
+            if self.algorithm == "ObjectDetection":
+                print('ObjectDetection')
+                self.run_object_detection(color_image)
+            elif self.algorithm == "Segmentation":
+                self.run_segmentation(color_image)
 
     def run_object_detection(self, color_image):
         # Apply the model and draw bounding boxes
         if self.inference_main.model:
             result = inference_detector(self.inference_main.model, color_image)
+            print('run_object_detection')
+            print(result)
             # self.process_result(result, color_image)
 
 
@@ -443,39 +444,6 @@ class VideoThread(QThread):
     def set_algorithm(self, algorithm):
         with self.lock:
             self.algorithm = algorithm
-    def process_result(self, result, color_image):
-        if self.algorithm == "ObjectDetection":
-            # Process object detection results
-            combined_result = []
-            pred_instances = result.pred_instances
-            labels = pred_instances.labels.cpu().numpy()
-            bboxes = pred_instances.bboxes.cpu().numpy()
-            scores = pred_instances.scores.cpu().numpy()
-
-            for label, bbox, score in zip(labels, bboxes, scores):
-                combined_result.append(('model1', self.inference_main.model_classes[label], np.append(bbox, score)))
-
-            for model_id, label, bbox_and_score in combined_result:
-                bbox = bbox_and_score[:4]
-                score = bbox_and_score[4]
-                if score >= 0.9:
-                    x1, y1, x2, y2 = bbox.astype(int)
-                    if model_id == 'model1':
-                        color = (0, 0, 255)
-                    cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
-                    text = f"Label: {label}, Score: {score:.2f}"
-                    cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
-        elif self.algorithm == "Segmentation":
-            # Process segmentation results
-            seg_image = self.inference_main.show_result(color_image, result, opacity=0.5)
-            color_image = seg_image
-
-        # rgbImage = color_image
-        # h, w, ch = rgbImage.shape
-        # bytesPerLine = ch * w
-        # convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-        # p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-        # self.changePixmap.emit(p)
 
     def run_object_detection(self, color_image):
         #from mmdet.apis import inference_detector

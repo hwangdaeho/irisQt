@@ -226,38 +226,38 @@ class VideoThread(QThread):
         super().__init__(*args, **kwargs)
         self.mutex = QMutex()  # Add a mutex
         self.is_recording = False  # Add a flag for recording
+        self.is_connected = False
         self.video_writer = None  # Add a video writer
-
-    def run(self):
+        self.timer = QTimer()  # Add a timer
+        self.timer.timeout.connect(self.update_frame)  # Connect the timer timeout signal to the update_frame method
+        self.timer.start(1000 / 30)  # Start the timer to call update_frame 30 times per second
         self.pipeline = rs.pipeline()
         self.config = rs.config()
-        self.is_connected = False
+    def update_frame(self):
+        self.mutex.lock()  # Lock the mutex
+        is_connected = self.is_connected  # Store the flag value in a local variable
+        is_recording = self.is_recording  # Store the flag value in a local variable
+        self.mutex.unlock()  # Unlock the mutex
 
-        while True:
-            self.mutex.lock()  # Lock the mutex
-            is_connected = self.is_connected  # Store the flag value in a local variable
-            is_recording = self.is_recording  # Store the flag value in a local variable
-            self.mutex.unlock()  # Unlock the mutex
+        if is_connected:
+            frames = self.pipeline.wait_for_frames()
+            color_frame = frames.get_color_frame()
 
-            if is_connected:
-                frames = self.pipeline.wait_for_frames()
-                color_frame = frames.get_color_frame()
+            if not color_frame:
+                return
 
-                if not color_frame:
-                    continue
+            color_image = np.asanyarray(color_frame.get_data())
+            rgbImage = color_image
+            h, w, ch = rgbImage.shape
+            bytesPerLine = ch * w
+            convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+            p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+            self.changePixmap.emit(p)
 
-                color_image = np.asanyarray(color_frame.get_data())
-                rgbImage = color_image
-                h, w, ch = rgbImage.shape
-                bytesPerLine = ch * w
-                convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-                p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-                self.changePixmap.emit(p)
-
-                if is_recording and self.video_writer is not None:
-                    bgr_frame = cv2.cvtColor(rgbImage, cv2.COLOR_RGB2BGR)
-                    # If we are recording, write the frame into the video writer
-                    self.video_writer.write(bgr_frame)
+            if is_recording and self.video_writer is not None:
+                bgr_frame = cv2.cvtColor(rgbImage, cv2.COLOR_RGB2BGR)
+                # If we are recording, write the frame into the video writer
+                self.video_writer.write(bgr_frame)
     def get_is_recording(self):
         self.mutex.lock()  # Lock the mutex
         is_recording = self.is_recording
