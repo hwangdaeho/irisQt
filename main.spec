@@ -9,8 +9,12 @@ a = Analysis(
     pathex=['/home/ubuntu/projects/robot/iris'],  # 수정된 pathex
     binaries=[],
     datas=[
+
         ('/home/ubuntu/projects/robot/iris/mmdet', 'mmdet'),
         ('/home/ubuntu/projects/robot/iris/mmseg', 'mmseg'),
+        ('/home/ubuntu/projects/robot/iris/odCfgFile', 'odCfgFile'),
+        ('/home/ubuntu/projects/robot/iris/sgCfgFile', 'sgCfgFile'),
+        ('/home/ubuntu/projects/robot/iris/yoloCfgFile', 'yoloCfgFile'),
         ('/home/ubuntu/.pyenv/versions/3.8.12/lib/python3.8/site-packages/mmcv', 'mmcv'),  # mmcv 패키지 위치를 잘 찾아서 넣어주세요
         ('/home/ubuntu/.pyenv/versions/3.8.12/lib/python3.8/site-packages/yapf_third_party/_ylib2to3', 'yapf_third_party/_ylib2to3'),  # yapf의 Grammar.txt 위치를 잘 찾아서 넣어주세요
         ('/home/ubuntu/projects/robot/iris/screen/calibration/index.py', 'screen/calibration'),

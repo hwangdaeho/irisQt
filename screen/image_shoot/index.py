@@ -61,6 +61,7 @@ class ImageMain(QWidget):
         self.disabled_icons = [":image/camera2.svg", ":image/folder-add2.svg", ":image/gallery2.svg", ":image/video2.svg", ":image/video-octagon2.svg"]
         # Create the buttons and add them to the layout
         self.buttons = []
+
         for i, name in enumerate(button_names):
             button = QToolButton()
             button.setText(name)

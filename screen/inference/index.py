@@ -25,6 +25,8 @@ from mmdet.registry import VISUALIZERS as mmdet_VISUALIZERS
 from mmyolo.registry import VISUALIZERS as mmyolo_VISUALIZERS
 from mmdet.apis import inference_detector
 from mmseg.apis import inference_model
+import torch
+import torch.utils.data
 class InferenceMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -142,6 +144,7 @@ class InferenceMain(QWidget):
         print('handle_load_model_button_click')
         if self.current_algo_type == 'Object Detection':
             if self.isYolo =="yolov5":
+                # self.load_yolov5()
                 self.load_mmyolov_model()
             else:
                 self.load_detection_model()
@@ -172,7 +175,7 @@ class InferenceMain(QWidget):
     def change_config_file(self, index):
         item = self.algo1.itemText(index)
         if item == 'yolov5':
-            self.config_file = 'yoloCfgFile/yolov5/yolov5_s-v61_syncbn_8xb16-300e_coco.py'
+            self.config_file = 'yoloCfgFile/yolov5/yolov5_s-v61_syncbn_fast_8xb16-300e_coco.py'
             self.isYolo = 'yolov5'
         elif item == 'faster_rcnn':
             self.config_file = 'odCfgFile/faster-rcnn_r50_fpn_1x_coco.py'
@@ -203,7 +206,7 @@ class InferenceMain(QWidget):
             print(fileName)
             self.checkpoint_file = fileName  # save model path
             # self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
-            self.model = init_detector(self.config_file, self.checkpoint_file, device='cpu')
+            self.model = init_detector(self.config_file, self.checkpoint_file, device='cuda:0')
             self.model_classes = self.model.dataset_meta['classes']
             print('모델')
             print(self.model.dataset_meta['classes'])
@@ -211,6 +214,23 @@ class InferenceMain(QWidget):
             self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
             self.IsModel = True
         self.update_button_states()
+
+    def load_yolov5(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.ReadOnly
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self, "Load YOLOv5 Model", "", "Model Files (*.pt)", options=options)
+        if fileName:
+            print(fileName)
+            self.model_file = fileName  # save model path
+            self.model = torch.hub.load('ultralytics/yolov5', 'custom', path=self.model_file, device='cpu')  # Load the model
+            self.model_classes = self.model.names  # Get the class names
+            print('Model Classes')
+            print(self.model_classes)
+            self.model_label.setText(os.path.basename(fileName))  # Show model file name on QLabel
+            self.IsModel = True
+        self.update_button_states()
+
 
     # Segmentation 관련
     def load_segmentation_model(self):
@@ -301,7 +321,6 @@ class InferenceMain(QWidget):
                 self.image_label.setPixmap(qt_img)
 
             elif self.current_algo_type == 'Segmentation':
-                print('Segmentation 이미지')
                 result = inference_model(self.model, img)  # infer image with the model
                 seg_image = self.show_result(img, result, opacity=0.5)
                 color_image = seg_image
@@ -333,7 +352,6 @@ class InferenceMain(QWidget):
         # If the camera is already connected, disconnect it
         if self.thread.is_connected:
             self.thread.disconnect_camera()
-            self.buttons[1].setText("카메라 연결")
             self.camera_connected = False
             self.show_placeholder_image()  # Add this line
             self.show_placeholder_image_raw()
@@ -385,6 +403,7 @@ class InferenceMain(QWidget):
                 button.setEnabled(False)
                 button.setIcon(QIcon(self.disabled_icons[i]))  # Change this line
                 button.setStyleSheet('background-color: #2F2F2F; color: #525252; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the disabled button color
+
 class VideoThread(QThread):
     changePixmap = pyqtSignal(QImage)  # For the processed image
     changePixmapRaw = pyqtSignal(QImage)  # For the raw image
@@ -408,8 +427,7 @@ class VideoThread(QThread):
             is_connected = self.is_connected
 
         if is_connected:
-            print('run_capture')
-            print('is_connected')
+
             frames = self.pipeline.wait_for_frames()
             color_frame = frames.get_color_frame()
             print(color_frame)
@@ -420,8 +438,8 @@ class VideoThread(QThread):
             color_image = np.asanyarray(color_frame.get_data())
 
             if self.algorithm == "ObjectDetection":
-                print('ObjectDetection')
                 self.run_object_detection(color_image)
+                # self.run_ultratic(color_image)
             elif self.algorithm == "Segmentation":
                 self.run_segmentation(color_image)
 
@@ -429,8 +447,6 @@ class VideoThread(QThread):
         # Apply the model and draw bounding boxes
         if self.inference_main.model:
             result = inference_detector(self.inference_main.model, color_image)
-            print('run_object_detection')
-            print(result)
             # self.process_result(result, color_image)
 
 
@@ -444,6 +460,28 @@ class VideoThread(QThread):
     def set_algorithm(self, algorithm):
         with self.lock:
             self.algorithm = algorithm
+    def run_ultratic(self, color_image):
+        # Convert to PIL Image
+        color_image = np.array(color_image)
+        result = self.inference_main.model(color_image)  # Run inference with ultralytics yolov5
+        result.print()  # print result to console
+
+        for *box, conf, cls in result.xyxy[0]:  # xyxy format is xmin, ymin, xmax, ymax
+            if conf >= 0.9:
+                box = [int(x) for x in box]
+                x1, y1, x2, y2 = box
+                color = (0, 0, 255)
+                cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
+                text = f"Label: {self.inference_main.model_classes[int(cls)]}, Score: {conf:.2f}"
+                cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+        # Convert back to QImage and emit
+        h, w, ch = color_image.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmap.emit(p)
+
 
     def run_object_detection(self, color_image):
         #from mmdet.apis import inference_detector
@@ -456,38 +494,44 @@ class VideoThread(QThread):
 
         # Apply the model and draw bounding boxes
         if self.inference_main.model is not None:
-            result = inference_detector(self.inference_main.model, color_image)
-            combined_result = []
 
+            result = inference_detector(self.inference_main.model, color_image)
+            # print(result)
             pred_instances = result.pred_instances
             labels = pred_instances.labels.cpu().numpy()
             bboxes = pred_instances.bboxes.cpu().numpy()
             scores = pred_instances.scores.cpu().numpy()
 
             for label, bbox, score in zip(labels, bboxes, scores):
-                combined_result.append(('model1', self.inference_main.model_classes[label], np.append(bbox, score)))
-
-            for model_id, label, bbox_and_score in combined_result:
-                bbox = bbox_and_score[:4]
-                score = bbox_and_score[4]
+                print(score)
                 if score >= 0.9:
                     x1, y1, x2, y2 = bbox.astype(int)
-                    if model_id == 'model1':
-                        color = (0, 0, 255)
+                    color = (0, 0, 255)
                     cv2.rectangle(color_image, (x1, y1), (x2, y2), color, 2)
-                    text = f"Label: {label}, Score: {score:.2f}"
+                    text = f"Label: {self.inference_main.model_classes[label]}, Score: {score:.2f}"
                     cv2.putText(color_image, text, (x1, y1 - 5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
 
         convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
         p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
         self.changePixmap.emit(p)
 
+    def run_mmyolo(self, color_image):
+        h, w, ch = color_image.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmapRaw.emit(p)
+
 
 
     def run_segmentation(self, color_image):
         #from mmseg.apis import inference_model
         # Here goes the segmentation code
-
+        h, w, ch = color_image.shape
+        bytesPerLine = ch * w
+        convertToQtFormat = QImage(color_image.data, w, h, bytesPerLine, QImage.Format_RGB888)
+        p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+        self.changePixmapRaw.emit(p)
         # Apply the model and create a segmentation map
         if self.inference_main.model is not None:
             result = inference_model(self.inference_main.model, color_image)

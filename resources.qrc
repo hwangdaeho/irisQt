@@ -34,6 +34,23 @@
     <file>image/Step1.jpg</file>
     <file>image/Step2.jpg</file>
     <file>image/Step3.jpg</file>
+    <file>image/position/arrow-down.svg</file>
+    <file>image/position/arrow-left.svg</file>
+    <file>image/position/arrow-up.svg</file>
+    <file>image/position/arrow-right.svg</file>
+    <file>image/position/button-Free.svg</file>
+    <file>image/position/turn-left.svg</file>
+    <file>image/position/turn-right.svg</file>
+    <file>image/position/TCP-Position.svg</file>
+
+    <file>image/Orientation/arrow-down.svg</file>
+    <file>image/Orientation/arrow-left.svg</file>
+    <file>image/Orientation/arrow-up.svg</file>
+    <file>image/Orientation/arrow-right.svg</file>
+    <file>image/Orientation/button-down.svg</file>
+    <file>image/Orientation/button-up.svg</file>
+    <file>image/Orientation/TCP-Orientation.svg</file>
+    <file>image/Speed.svg</file>
 
 </qresource>
 </RCC>
