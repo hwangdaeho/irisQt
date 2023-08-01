@@ -16,7 +16,10 @@ from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 import pyrealsense2 as rs
 import sys
+import os
 from screen.video_manager import VideoManager
+import datetime
+from toast import Toast
 class CalibrationMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -53,7 +56,6 @@ class CalibrationMain(QWidget):
         self.move_val = self.VELOCITY / 100
         self.rot_val = self.VELOCITY / 100
 
-        self.update_button_states()
 
         self.video_manager = VideoManager()
         self.video_thread = self.video_manager.get_video_thread()
@@ -63,6 +65,8 @@ class CalibrationMain(QWidget):
 
         # Start the video thread
         self.video_thread.start()
+        self.update_button_states()
+        self.camera_update_button_states()
     def setup_left_panel(self, layout):
         layout.addSpacing(50)
 
@@ -111,10 +115,10 @@ class CalibrationMain(QWidget):
 
         right_sub_layout.addWidget(self.connection_layout())
         # Then add the text with a black background
-        black_background_text = QLabel("Your text here")
-        black_background_text.setStyleSheet("background-color: black; color: white;")
-        black_background_text.setFixedHeight(170)
-        right_sub_layout.addWidget(black_background_text)
+        self.black_background_text = QLabel()
+        self.black_background_text.setStyleSheet("background-color: black; color: white;")
+        self.black_background_text.setFixedHeight(170)
+        right_sub_layout.addWidget(self.black_background_text)
 
         right_sub_layout.addLayout(self.grid_header())
 
@@ -310,7 +314,7 @@ class CalibrationMain(QWidget):
         button_layout.setAlignment(Qt.AlignCenter)  # Align the image to the center
         button_layout.setContentsMargins(0, 0, 0, 0)
 
-        button_names = ["카메라 연결", "경로설정", "이미지 저장", "영상 저장",  "데이터 보기"]
+        button_names = ["카메라 연결", "경로설정", "이미지 저장", "켈리브레이션",  "데이터 보기"]
         self.enabled_icons = [":image/camera.svg", ":image/folder-add.svg", ":image/gallery.svg", ":image/video.svg", ":image/video-octagon.svg"]
         self.disabled_icons = [":image/camera2.svg", ":image/folder-add2.svg", ":image/gallery2.svg", ":image/video2.svg", ":image/video-octagon2.svg"]
 
@@ -322,7 +326,20 @@ class CalibrationMain(QWidget):
             button_layout.addWidget(button)
         self.camera_buttons[0].clicked.connect(self.connect_camera)  # '카메라 연결' 버튼을 connect_camera 함수에 연결
         self.camera_buttons[1].clicked.connect(self.create_folder)  # '카메라 연결' 버튼을 connect_camera 함수에 연결
+        self.camera_buttons[2].clicked.connect(self.save_image)  # '카메라 연결' 버튼을 connect_camera 함수에 연결
+        self.camera_buttons[3].clicked.connect(self.calibration_connect)  # '카메라 연결' 버튼을 connect_camera 함수에 연결
         return button_layout
+
+
+    def calibration_connect(self):
+
+        # 가운데 정렬
+        self.black_background_text.setAlignment(Qt.AlignCenter)
+        # 텍스트
+        text = "글자 여기"
+        self.black_background_text.setText(text)
+
+
 
     def create_folder(self):
         if self.camera_connected:  # Only allow to create a folder when the camera is connected
@@ -333,7 +350,34 @@ class CalibrationMain(QWidget):
             if folder_path:
                 self.folder_path = folder_path
                 self.folder_created = True
-                self.update_button_states()  # Update button states
+                self.camera_update_button_states()  # Update button states
+    def camera_update_button_states(self):
+        self.camera_buttons[0].setEnabled(True)  # '카메라 연결' button
+        self.camera_buttons[1].setEnabled(self.camera_connected)  # '생성' button
+        self.camera_buttons[2].setEnabled(self.camera_connected and self.folder_created)  # '이미지 저장' button
+        self.camera_buttons[3].setEnabled(self.camera_connected and self.folder_created)  # '켈리브레이션' button
+
+        # Update button colors
+        for i, button in enumerate(self.camera_buttons):
+            if button.isEnabled():
+                button.setEnabled(True)
+                button.setIcon(QIcon(self.enabled_icons[i]))  # Change this line
+                button.setStyleSheet('background-color: #2F2F2F; color: white; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the enabled button color
+            else:
+                button.setEnabled(False)
+                button.setIcon(QIcon(self.disabled_icons[i]))  # Change this line
+                button.setStyleSheet('background-color: #2F2F2F; color: #525252; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the disabled button color
+
+    def save_image(self):
+        if hasattr(self, 'folder_path'):
+            timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            image_path = os.path.join(self.folder_path, f"{timestamp}.jpg")
+            # save the image
+            self.current_image.save(image_path, "JPEG")
+            self.toast = Toast(self, "이미지 촬영이 완료되었습니다.") # Make toast a class attribute
+            self.toast.show()
+        else:
+            QMessageBox.information(self, "No folder selected", "Please create a folder first.")
     def create_button(self, button_info, icon_size):
 
         button = QToolButton()
@@ -359,9 +403,11 @@ class CalibrationMain(QWidget):
     def update_button_states(self):
         for button in self.buttons:
             button.setEnabled(self.is_connected)
+
     def set_connected(self, connected):
         self.is_connected = connected
         self.update_button_states()
+
     def create_tool_button(self, name, icon_path):
         button = QToolButton()
         button.setText(name)
