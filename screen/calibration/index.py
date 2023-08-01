@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import QShortcut
 from PyQt5.QtGui import QKeySequence
 import pyrealsense2 as rs
 import sys
+from screen.video_manager import VideoManager
 class CalibrationMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -54,11 +55,14 @@ class CalibrationMain(QWidget):
 
         self.update_button_states()
 
-        self.thread = VideoThread()
-        self.thread.changePixmap.connect(self.setImage)
+        self.video_manager = VideoManager()
+        self.video_thread = self.video_manager.get_video_thread()
+
+        # Connect the changePixmap signal to the setImage method
+        self.video_thread.changePixmap.connect(self.setImage)
 
         # Start the video thread
-        self.thread.start()
+        self.video_thread.start()
     def setup_left_panel(self, layout):
         layout.addSpacing(50)
 
@@ -383,8 +387,8 @@ class CalibrationMain(QWidget):
 
     def connect_camera(self):
         # If the camera is already connected, disconnect it
-        if self.thread.is_connected:
-            self.thread.disconnect_camera()
+        if self.video_thread.is_connected:
+            self.video_thread.disconnect_camera()
             self.camera_buttons[0].setText("카메라 연결")
             self.camera_connected = False
             self.show_placeholder_image()  # Add this line
@@ -397,7 +401,7 @@ class CalibrationMain(QWidget):
                 camera_name, ok = QInputDialog.getItem(self, "Connect to camera", "Choose a camera:", camera_names, 0, False)
 
                 if ok and camera_name:
-                    connected = self.thread.connect_camera(camera_name)
+                    connected = self.video_thread.connect_camera(camera_name)
                     if connected:
                         self.camera_buttons[0].setText("연결 해제")  # Change the button text
                         self.camera_connected = True
@@ -615,60 +619,61 @@ class CalibrationMain(QWidget):
         freedrive_duration = 10 # freedrive 모드 유지 시간 (초)
         self.robot.set_freedrive(True)
 
-class VideoThread(QThread):
-    changePixmap = pyqtSignal(QImage)
+# class VideoThread(QThread):
+#     changePixmap = pyqtSignal(QImage)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mutex = QMutex()  # Add a mutex
-        self.is_recording = False  # Add a flag for recording
-        self.is_connected = False
-        self.video_writer = None  # Add a video writer
-        self.timer = QTimer()  # Add a timer
-        self.timer.timeout.connect(self.update_frame)  # Connect the timer timeout signal to the update_frame method
-        self.timer.start(1000 / 30)  # Start the timer to call update_frame 30 times per second
-        self.pipeline = rs.pipeline()
-        self.config = rs.config()
-    def update_frame(self):
-        self.mutex.lock()  # Lock the mutex
-        is_connected = self.is_connected  # Store the flag value in a local variable
-        # is_recording = self.is_recording  # Store the flag value in a local variable
-        self.mutex.unlock()  # Unlock the mutex
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.mutex = QMutex()  # Add a mutex
+#         self.is_recording = False  # Add a flag for recording
+#         self.is_connected = False
+#         self.video_writer = None  # Add a video writer
+#         self.timer = QTimer()  # Add a timer
+#         self.timer.timeout.connect(self.update_frame)  # Connect the timer timeout signal to the update_frame method
+#         self.timer.start(1000 / 30)  # Start the timer to call update_frame 30 times per second
+#         self.pipeline = rs.pipeline()
+#         self.config = rs.config()
+#     def update_frame(self):
+#         self.mutex.lock()  # Lock the mutex
+#         is_connected = self.is_connected  # Store the flag value in a local variable
+#         # is_recording = self.is_recording  # Store the flag value in a local variable
+#         self.mutex.unlock()  # Unlock the mutex
 
-        if is_connected:
-            frames = self.pipeline.wait_for_frames()
-            color_frame = frames.get_color_frame()
+#         if is_connected:
+#             frames = self.pipeline.wait_for_frames()
+#             color_frame = frames.get_color_frame()
 
-            if not color_frame:
-                return
+#             if not color_frame:
+#                 return
 
-            color_image = np.asanyarray(color_frame.get_data())
-            rgbImage = color_image
-            h, w, ch = rgbImage.shape
-            bytesPerLine = ch * w
-            convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-            p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-            self.changePixmap.emit(p)
-    def connect_camera(self, camera_name):
-        self.mutex.lock()  # Lock the mutex
-        try:
-            self.pipeline.start(self.config)
-            self.is_connected = True
-            return True  # Add this line
-        except RuntimeError as e:
-            QMessageBox.information(self, "Connection failed", "Could not connect to the selected camera: {}".format(e))
-        finally:
-            self.mutex.unlock()  # Unlock the mutex in a finally block to ensure it gets unlocked
-            # if is_recording and self.video_writer is not None:
-            #     bgr_frame = cv2.cvtColor(rgbImage, cv2.COLOR_RGB2BGR)
-            #     # If we are recording, write the frame into the video writer
-            #     self.video_writer.write(bgr_frame)
-    def disconnect_camera(self):
-        self.mutex.lock()  # Lock the mutex
-        if self.is_connected:
-            self.pipeline.stop()
-            self.is_connected = False  # Set this flag to False after stopping the pipeline
-        self.mutex.unlock()  # Unlock the mutex
+#             color_image = np.asanyarray(color_frame.get_data())
+#             rgbImage = color_image
+#             h, w, ch = rgbImage.shape
+#             bytesPerLine = ch * w
+#             convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+#             p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+#             self.changePixmap.emit(p)
+#     def connect_camera(self, camera_name):
+#         self.mutex.lock()  # Lock the mutex
+#         try:
+#             self.pipeline.start(self.config)
+#             self.is_connected = True
+#             return True  # Add this line
+#         except RuntimeError as e:
+#             QMessageBox.information(self, "Connection failed", "Could not connect to the selected camera: {}".format(e))
+#         finally:
+#             self.mutex.unlock()  # Unlock the mutex in a finally block to ensure it gets unlocked
+#             # if is_recording and self.video_writer is not None:
+#             #     bgr_frame = cv2.cvtColor(rgbImage, cv2.COLOR_RGB2BGR)
+#             #     # If we are recording, write the frame into the video writer
+#             #     self.video_writer.write(bgr_frame)
+#     def disconnect_camera(self):
+#         self.mutex.lock()  # Lock the mutex
+#         if self.is_connected:
+#             self.pipeline.stop()
+#             self.is_connected = False  # Set this flag to False after stopping the pipeline
+#         self.mutex.unlock()  # Unlock the mutex
+
 class CircleWidget(QWidget):
     def __init__(self, color, parent=None):
         super().__init__(parent)

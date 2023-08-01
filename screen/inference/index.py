@@ -45,12 +45,23 @@ class InferenceMain(QWidget):
         self.isYolo = None
         self.update_button_states()
 
+
+        # self.video_manager = VideoManager()  # Create a VideoManager instance
+        # self.thread = self.video_manager.get_video_thread()  # Get the shared VideoThread instance from the VideoManager
+        # self.thread.changePixmap.connect(self.setImage)
+        # self.thread.changePixmapRaw.connect(self.setImageRaw)
+        # self.thread.start()  # Start the thread
+
         self.thread = VideoThread(self)  # Pass the inference_main instance to the VideoThread constructor
+
         self.thread.changePixmap.connect(self.setImage)
         self.thread.changePixmapRaw.connect(self.setImageRaw)
         self.thread.start()
         self.current_algo_type = None
+
+
     def initUI(self):
+
         # Define a main vertical layout
         main_layout = QVBoxLayout()
         main_layout.addSpacing(50)
@@ -246,6 +257,7 @@ class InferenceMain(QWidget):
             self.palette += [[random.randint(0, 255) for _ in range(3)] for _ in range(self.num_classes - 1)]  # Other classes get random colors
             self.IsModel = True
         self.update_button_states()
+
     def load_mmyolov_model(self):
         options = QFileDialog.Options()
         options |= QFileDialog.ReadOnly
@@ -353,6 +365,7 @@ class InferenceMain(QWidget):
         if self.thread.is_connected:
             self.thread.disconnect_camera()
             self.camera_connected = False
+            self.buttons[1].setText("카메라 연결")  # Change the button text
             self.show_placeholder_image()  # Add this line
             self.show_placeholder_image_raw()
         else:
@@ -405,6 +418,7 @@ class InferenceMain(QWidget):
                 button.setStyleSheet('background-color: #2F2F2F; color: #525252; font-size:15px; padding: 19px 16px;border-top: 1.5px solid #2F2F2F;border-right: 1.5px solid #2F2F2F;border-bottom: 1.5px solid #2F2F2F;')  # Set the disabled button color
 
 class VideoThread(QThread):
+
     changePixmap = pyqtSignal(QImage)  # For the processed image
     changePixmapRaw = pyqtSignal(QImage)  # For the raw image
 

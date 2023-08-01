@@ -17,6 +17,7 @@ import datetime
 from toast import Toast
 import glob
 from functools import partial
+from screen.video_manager import VideoManager
 class ImageMain(QWidget):
     def __init__(self, parent=None, stacked_widget=None, main_window=None):
         super().__init__(parent)
@@ -96,18 +97,20 @@ class ImageMain(QWidget):
         # Connect the '카메라 연결' button to the connect_camera function
         # self.buttons[1].clicked.connect(self.connect_camera)
 
-        # Create the video thread
-        self.thread = VideoThread()
-        self.thread.changePixmap.connect(self.setImage)
+        self.video_manager = VideoManager()
+        self.video_thread = self.video_manager.get_video_thread()
+
+        # Connect the changePixmap signal to the setImage method
+        self.video_thread.changePixmap.connect(self.setImage)
 
         # Start the video thread
-        self.thread.start()
+        self.video_thread.start()
     def guide_button_click(self):
         # 'capture_guide.png'는 촬영 가이드 이미지 파일의 경로입니다.
         self.guide_window = GuideWindow(':image/ImageGuide.png')
         self.guide_window.show()
     def handle_record_button_click(self):
-        if self.thread.get_is_recording():  # 녹화가 이미 진행 중이라면
+        if self.video_thread.get_is_recording():  # 녹화가 이미 진행 중이라면
             print('stop')
             self.stop_recording()  # 녹화를 중지합니다.
         else:  # 녹화가 진행 중이 아니라면
@@ -117,7 +120,7 @@ class ImageMain(QWidget):
         if hasattr(self, 'folder_path') and self.camera_connected:  # Only allow to start recording when the camera is connected and a folder is created
             timestamp = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
             video_path = os.path.join(self.folder_path, f"{timestamp}.mp4")
-            self.thread.start_recording(video_path)
+            self.video_thread.start_recording(video_path)
             self.recording_start_time = datetime.datetime.now()
             self.recording_timer.start(1000)  # Update every second
         else:
@@ -130,7 +133,7 @@ class ImageMain(QWidget):
             self.buttons[3].setText(f"{hours:02d}:{minutes:02d}:{seconds:02d}")
     def stop_recording(self):
         if self.camera_connected:  # Only allow to stop recording when the camera is connected
-            self.thread.stop_recording()
+            self.video_thread.stop_recording()
             self.recording_timer.stop()
             self.recording_start_time = None
             self.buttons[3].setText("녹화 시작")
@@ -190,8 +193,8 @@ class ImageMain(QWidget):
 
     def connect_camera(self):
         # If the camera is already connected, disconnect it
-        if self.thread.is_connected:
-            self.thread.disconnect_camera()
+        if self.video_thread.is_connected:
+            self.video_thread.disconnect_camera()
             self.buttons[0].setText("카메라 연결")
             self.camera_connected = False
             self.show_placeholder_image()  # Add this line
@@ -204,7 +207,7 @@ class ImageMain(QWidget):
                 camera_name, ok = QInputDialog.getItem(self, "Connect to camera", "Choose a camera:", camera_names, 0, False)
 
                 if ok and camera_name:
-                    connected = self.thread.connect_camera(camera_name)
+                    connected = self.video_thread.connect_camera(camera_name)
                     if connected:
                         self.buttons[0].setText("연결 해제")  # Change the button text
                         self.camera_connected = True
@@ -220,86 +223,86 @@ class ImageMain(QWidget):
         # Display the placeholder image
         self.setImage(placeholder)
 
-class VideoThread(QThread):
-    changePixmap = pyqtSignal(QImage)
+# class VideoThread(QThread):
+#     changePixmap = pyqtSignal(QImage)
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.mutex = QMutex()  # Add a mutex
-        self.is_recording = False  # Add a flag for recording
-        self.is_connected = False
-        self.video_writer = None  # Add a video writer
-        self.timer = QTimer()  # Add a timer
-        self.timer.timeout.connect(self.update_frame)  # Connect the timer timeout signal to the update_frame method
-        self.timer.start(1000 / 30)  # Start the timer to call update_frame 30 times per second
-        self.pipeline = rs.pipeline()
-        self.config = rs.config()
-    def update_frame(self):
-        self.mutex.lock()  # Lock the mutex
-        is_connected = self.is_connected  # Store the flag value in a local variable
-        is_recording = self.is_recording  # Store the flag value in a local variable
-        self.mutex.unlock()  # Unlock the mutex
+#     def __init__(self, *args, **kwargs):
+#         super().__init__(*args, **kwargs)
+#         self.mutex = QMutex()  # Add a mutex
+#         self.is_recording = False  # Add a flag for recording
+#         self.is_connected = False
+#         self.video_writer = None  # Add a video writer
+#         self.timer = QTimer()  # Add a timer
+#         self.timer.timeout.connect(self.update_frame)  # Connect the timer timeout signal to the update_frame method
+#         self.timer.start(1000 / 30)  # Start the timer to call update_frame 30 times per second
+#         self.pipeline = rs.pipeline()
+#         self.config = rs.config()
+#     def update_frame(self):
+#         self.mutex.lock()  # Lock the mutex
+#         is_connected = self.is_connected  # Store the flag value in a local variable
+#         is_recording = self.is_recording  # Store the flag value in a local variable
+#         self.mutex.unlock()  # Unlock the mutex
 
-        if is_connected:
-            frames = self.pipeline.wait_for_frames()
-            color_frame = frames.get_color_frame()
+#         if is_connected:
+#             frames = self.pipeline.wait_for_frames()
+#             color_frame = frames.get_color_frame()
 
-            if not color_frame:
-                return
+#             if not color_frame:
+#                 return
 
-            color_image = np.asanyarray(color_frame.get_data())
-            rgbImage = color_image
-            h, w, ch = rgbImage.shape
-            bytesPerLine = ch * w
-            convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
-            p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
-            self.changePixmap.emit(p)
+#             color_image = np.asanyarray(color_frame.get_data())
+#             rgbImage = color_image
+#             h, w, ch = rgbImage.shape
+#             bytesPerLine = ch * w
+#             convertToQtFormat = QImage(rgbImage.data, w, h, bytesPerLine, QImage.Format_RGB888)
+#             p = convertToQtFormat.scaled(640, 480, Qt.KeepAspectRatio)
+#             self.changePixmap.emit(p)
 
-            if is_recording and self.video_writer is not None:
-                bgr_frame = cv2.cvtColor(rgbImage, cv2.COLOR_RGB2BGR)
-                # If we are recording, write the frame into the video writer
-                self.video_writer.write(bgr_frame)
-    def get_is_recording(self):
-        self.mutex.lock()  # Lock the mutex
-        is_recording = self.is_recording
-        self.mutex.unlock()  # Unlock the mutex
-        return is_recording
-    def connect_camera(self, camera_name):
-        self.mutex.lock()  # Lock the mutex
-        try:
-            self.pipeline.start(self.config)
-            self.is_connected = True
-            return True  # Add this line
-        except RuntimeError as e:
-            QMessageBox.information(self, "Connection failed", "Could not connect to the selected camera: {}".format(e))
-        finally:
-            self.mutex.unlock()  # Unlock the mutex in a finally block to ensure it gets unlocked
+#             if is_recording and self.video_writer is not None:
+#                 bgr_frame = cv2.cvtColor(rgbImage, cv2.COLOR_RGB2BGR)
+#                 # If we are recording, write the frame into the video writer
+#                 self.video_writer.write(bgr_frame)
+#     def get_is_recording(self):
+#         self.mutex.lock()  # Lock the mutex
+#         is_recording = self.is_recording
+#         self.mutex.unlock()  # Unlock the mutex
+#         return is_recording
+#     def connect_camera(self, camera_name):
+#         self.mutex.lock()  # Lock the mutex
+#         try:
+#             self.pipeline.start(self.config)
+#             self.is_connected = True
+#             return True  # Add this line
+#         except RuntimeError as e:
+#             QMessageBox.information(self, "Connection failed", "Could not connect to the selected camera: {}".format(e))
+#         finally:
+#             self.mutex.unlock()  # Unlock the mutex in a finally block to ensure it gets unlocked
 
-    def disconnect_camera(self):
-        self.mutex.lock()  # Lock the mutex
-        if self.is_connected:
-            self.pipeline.stop()
-            self.is_connected = False  # Set this flag to False after stopping the pipeline
-        self.mutex.unlock()  # Unlock the mutex
-    def start_recording(self, video_path):
-        self.mutex.lock()  # Lock the mutex
-        if self.is_connected:
-            # Create a video writer
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            self.video_writer = cv2.VideoWriter(video_path, fourcc, 20.0, (640, 480))
-            self.is_recording = True  # Set this flag to True when starting recording
-            print('start')
-        self.mutex.unlock()  # Unlock the mutex
+#     def disconnect_camera(self):
+#         self.mutex.lock()  # Lock the mutex
+#         if self.is_connected:
+#             self.pipeline.stop()
+#             self.is_connected = False  # Set this flag to False after stopping the pipeline
+#         self.mutex.unlock()  # Unlock the mutex
+#     def start_recording(self, video_path):
+#         self.mutex.lock()  # Lock the mutex
+#         if self.is_connected:
+#             # Create a video writer
+#             fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+#             self.video_writer = cv2.VideoWriter(video_path, fourcc, 20.0, (640, 480))
+#             self.is_recording = True  # Set this flag to True when starting recording
+#             print('start')
+#         self.mutex.unlock()  # Unlock the mutex
 
-    def stop_recording(self):
-        self.mutex.lock()  # Lock the mutex
-        if self.is_recording:
-            self.is_recording = False  # Set this flag to False when stopping recording
-            # Release the video writer
-            self.video_writer.release()
-            self.video_writer = None
-            print('stop')
-        self.mutex.unlock()  # Unlock the mutex
+#     def stop_recording(self):
+#         self.mutex.lock()  # Lock the mutex
+#         if self.is_recording:
+#             self.is_recording = False  # Set this flag to False when stopping recording
+#             # Release the video writer
+#             self.video_writer.release()
+#             self.video_writer = None
+#             print('stop')
+#         self.mutex.unlock()  # Unlock the mutex
 
 
 
